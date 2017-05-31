@@ -83,6 +83,11 @@ class URLPlaylistEntry(BasePlaylistEntry):
 
         self.playlist = playlist
         self.url = url
+        self.id = None
+        self.icon = None
+        if 'youtu' in url.lower():
+            self.id = re.search(r'((?<=(v|V)/)|(?<=be/)|(?<=(\?|\&)v=)|(?<=embed/))([\w-]+)', url).group(0)
+            self.icon = 'https://img.youtube.com/vi/{}/0.jpg'.format(self.id)
         self.title = title
         self.duration = duration
         self.expected_filename = expected_filename

@@ -9,6 +9,7 @@ import logging
 import asyncio
 import pathlib
 import traceback
+import math
 
 import aiohttp
 import discord
@@ -850,13 +851,14 @@ class MusicBot(discord.Client):
         expire_in = kwargs.pop('expire_in', 0)
         allow_none = kwargs.pop('allow_none', True)
         also_delete = kwargs.pop('also_delete', None)
+        embed = kwargs.pop('embed', None)
 
         msg = None
         lfunc = log.debug if quiet else log.warning
 
         try:
             if content is not None or allow_none:
-                msg = await self.send_message(dest, content, tts=tts)
+                msg = await self.send_message(dest, content, tts=tts, embed=embed)
 
         except discord.Forbidden:
             lfunc("Cannot send message to \"%s\", no permission", dest.name)
@@ -1699,38 +1701,39 @@ class MusicBot(discord.Client):
         Displays the current song in chat.
         """
 
+        await self.send_typing(channel)
+
+        streaming = isinstance(player.current_entry, StreamPlaylistEntry)
+        action = 'Playing' if not streaming else 'Streaming'
+
+        embed = discord.Embed(color=0x16dab2)
+        embed.set_author(name='Wholesome Music - Now '+action, url='http://john.party/42', icon_url=self.user.avatar_url)
+
         if player.current_entry:
             if self.server_specific_data[server]['last_np_msg']:
                 await self.safe_delete_message(self.server_specific_data[server]['last_np_msg'])
                 self.server_specific_data[server]['last_np_msg'] = None
 
-            # TODO: Fix timedelta garbage with util function
             song_progress = ftimedelta(timedelta(seconds=player.progress))
             song_total = ftimedelta(timedelta(seconds=player.current_entry.duration))
+            prog_str = '`[{}{}]`'.format(song_progress, ('/' + song_total) if not streaming else '')
 
-            streaming = isinstance(player.current_entry, StreamPlaylistEntry)
-            prog_str = ('`[{progress}]`' if streaming else '`[{progress}/{total}]`').format(
-                progress=song_progress, total=song_total
-            )
-            action_text = 'Streaming' if streaming else 'Playing'
+            embed.title = player.current_entry.title
+            embed.url = player.current_entry.url
+            embed.set_thumbnail(url=player.current_entry.icon or Embed.Empty)
 
             if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
-                np_text = "Now {action}: **{title}** added by **{author}** {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>".format(
-                    action=action_text,
-                    title=player.current_entry.title,
-                    author=player.current_entry.meta['author'].name,
-                    progress=prog_str,
-                    url=player.current_entry.url
-                )
+                embed.description = '{} - requested by **{}**'.format(prog_str, player.current_entry.meta['author'].name)
             else:
-                np_text = "Now {action}: **{title}** {progress}\n\N{WHITE RIGHT POINTING BACKHAND INDEX} <{url}>".format(
-                    action=action_text,
-                    title=player.current_entry.title,
-                    progress=prog_str,
-                    url=player.current_entry.url
-                )
+                embed.description = prog_str
 
-            self.server_specific_data[server]['last_np_msg'] = await self.safe_send_message(channel, np_text)
+            if player.playlist.entries:
+                embed.add_field(name='Up Next', value='**' + player.playlist.entries[0].title + '**')
+                embed.set_footer(text='To see the whole queue, use `{}queue`.'.format(self.config.command_prefix))
+            else:
+                embed.set_footer(text='There are no more songs in the queue, request one with `{}play`.'.format(self.config.command_prefix))
+
+            self.server_specific_data[server]['last_np_msg'] = await self.safe_send_message(channel, None, embed=embed)
             await self._manual_delete_check(message)
         else:
             return Response(
@@ -2032,54 +2035,86 @@ class MusicBot(discord.Client):
                 raise exceptions.CommandError(
                     'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume), expire_in=20)
 
-    async def cmd_queue(self, channel, player):
+    async def cmd_queue(self, channel, player, page='1'):
         """
         Usage:
-            {command_prefix}queue
+            {command_prefix}queue <page>
 
         Prints the current song queue.
+        If there are more than 15 songs, the queue is divided into pages of 10 each, <page> allows you to specify what page you want to see.
         """
 
+        await self.send_typing(channel)
+
+        streaming = isinstance(player.current_entry, StreamPlaylistEntry)
+        action = 'Playing' if not streaming else 'Streaming'
+
+        embed = discord.Embed(color=0x16dab2)
+        embed.set_author(name='Wholesome Music - Now '+action, url='http://john.party/42', icon_url=self.user.avatar_url)
+
         lines = []
-        unlisted = 0
-        andmoretext = '* ... and %s more*' % ('x' * len(player.playlist.entries))
 
         if player.current_entry:
-            # TODO: Fix timedelta garbage with util function
+            cur_progress = player.progress
             song_progress = ftimedelta(timedelta(seconds=player.progress))
             song_total = ftimedelta(timedelta(seconds=player.current_entry.duration))
-            prog_str = '`[%s/%s]`' % (song_progress, song_total)
+            prog_str = '`[{}{}]`'.format(song_progress, ('/' + song_total) if not streaming else '')
+
+            total_seconds = player.current_entry.duration
+
+            embed.title = player.current_entry.title
+            embed.url = player.current_entry.url
+            embed.set_thumbnail(url=player.current_entry.icon or Embed.Empty)
 
             if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
-                lines.append("Currently Playing: **%s** added by **%s** %s\n" % (
-                    player.current_entry.title, player.current_entry.meta['author'].name, prog_str))
+                embed.description = '{} - requested by **{}**'.format(prog_str, player.current_entry.meta['author'].name)
             else:
-                lines.append("Now Playing: **%s** %s\n" % (player.current_entry.title, prog_str))
+                embed.description = prog_str
+
+        songs = len(player.playlist.entries) + 1
+        start = 1
+        end = songs
+        try:
+            page = int(page)
+        except ValueError:
+            raise exceptions.CommandError('Invalid value.', expire_in=20)
+        pages = math.ceil(songs / 10)
+        if(songs > 16):
+            if(page > pages):
+                raise exceptions.CommandError('Page number not valid, there {0} {2} page{1}.'.format(*(['are', 's'] if pages != 1 else ['is', '']), pages), expire_in=20)
+            start = start + ((page - 1) * 10)
+            end = min(start + 10, songs)
 
         for i, item in enumerate(player.playlist, 1):
+            total_seconds += item.duration
+
+            if not (start <= i < end):
+                continue
+
+            titleline = '`{}.` **{}**'.format(i, item.title)
+            infoline = '\t\t`[-{}/{}]`'.format(ftimedelta(timedelta(seconds=total_seconds - cur_progress), ftimedelta(timedelta(seconds=item.duration))
+
             if item.meta.get('channel', False) and item.meta.get('author', False):
-                nextline = '`{}.` **{}** added by **{}**'.format(i, item.title, item.meta['author'].name).strip()
-            else:
-                nextline = '`{}.` **{}**'.format(i, item.title).strip()
+                infoline += '\t- requested by **{}**'.format(item.meta['author'].name).strip()
 
-            currentlinesum = sum(len(x) + 1 for x in lines)  # +1 is for newline char
-
-            if currentlinesum + len(nextline) + len(andmoretext) > DISCORD_MSG_CHAR_LIMIT:
-                if currentlinesum + len(andmoretext):
-                    unlisted += 1
-                    continue
-
-            lines.append(nextline)
-
-        if unlisted:
-            lines.append('\n*... and %s more*' % unlisted)
+            lines.append(titleline)
+            lines.append(infoline)
 
         if not lines:
             lines.append(
                 'There are no songs queued! Queue something with {}play.'.format(self.config.command_prefix))
 
-        message = '\n'.join(lines)
-        return Response(message, delete_after=30)
+        embed.add_field(name='Queued', value='\n'.join(lines))
+
+        if player.current_entry:
+            embed.add_field(name='**Total Duration**', value='`[{}/{}]`'.format(song_progress, ftimedelta(timedelta(seconds=total_seconds)))
+
+        if(songs > 16):
+            embed.set_footer(text='Showing page {} of {} ({} total songs). Use `{}queue <page>` to see other pages.'.format(page, math.ceil(songs / 10), songs - 1, self.config.command_prefix))
+
+        return embed
+
+    cmd_q = cmd_queue
 
     async def cmd_color(self, server, channel, author, color):
         """
@@ -2618,6 +2653,13 @@ class MusicBot(discord.Client):
                     message.channel, content,
                     expire_in=response.delete_after if self.config.delete_messages else 0,
                     also_delete=message if self.config.delete_invoking else None
+                )
+            elif response and isinstance(response, discord.Embed):
+                sentmsg = await self.safe_send_message(
+                    message.channel, None,
+                    expire_in=response.delete_after if self.config.delete_messages else 0,
+                    also_delete=message if self.config.delete_invoking else None,
+                    embed=response
                 )
 
         except (exceptions.CommandError, exceptions.HelpfulError, exceptions.ExtractionError) as e:
