@@ -10,6 +10,9 @@ import asyncio
 import pathlib
 import traceback
 import math
+import inspect
+
+allow_requests = True
 
 import aiohttp
 import discord
@@ -23,7 +26,6 @@ from collections import defaultdict
 
 from discord.enums import ChannelType
 from discord.ext.commands.bot import _get_variable
-from discord.http import _func_
 
 from gtts import gTTS
 
@@ -47,6 +49,9 @@ load_opus_lib()
 
 log = logging.getLogger(__name__)
 
+def _func_():
+    # emulate __func__ from C++
+    return inspect.currentframe().f_back.f_code.co_name
 
 class MusicBot(discord.Client):
     def __init__(self, config_file=None, perms_file=None):
@@ -2092,7 +2097,7 @@ class MusicBot(discord.Client):
                 continue
 
             titleline = '`{}.` **{}**'.format(i, item.title)
-            infoline = '\t\t`[-{}/{}]`'.format(ftimedelta(timedelta(seconds=total_seconds - cur_progress), ftimedelta(timedelta(seconds=item.duration))
+            infoline = '\t\t`[-{}/{}]`'.format(ftimedelta(timedelta(seconds=total_seconds - cur_progress)), ftimedelta(timedelta(seconds=item.duration)))
 
             if item.meta.get('channel', False) and item.meta.get('author', False):
                 infoline += '\t- requested by **{}**'.format(item.meta['author'].name).strip()
@@ -2107,9 +2112,9 @@ class MusicBot(discord.Client):
         embed.add_field(name='Queued', value='\n'.join(lines))
 
         if player.current_entry:
-            embed.add_field(name='**Total Duration**', value='`[{}/{}]`'.format(song_progress, ftimedelta(timedelta(seconds=total_seconds)))
+            embed.add_field(name='**Total Duration**', value='`[{}/{}]`'.format(song_progress, ftimedelta(timedelta(seconds=total_seconds))))
 
-        if(songs > 16):
+        if songs > 16:
             embed.set_footer(text='Showing page {} of {} ({} total songs). Use `{}queue <page>` to see other pages.'.format(page, math.ceil(songs / 10), songs - 1, self.config.command_prefix))
 
         return embed
@@ -2424,7 +2429,7 @@ class MusicBot(discord.Client):
         await self.disconnect_voice_client(server)
         return Response("\N{DASH SYMBOL}", delete_after=20)
 
-    async def cmd_restart(self, channel):
+    async def cmd_restart(self, channel, message, player):
         if 'save' in message.content:
             with open('audio_cache/queue.txt', 'w') as f:
                 print(player.current_entry.url, file=f)
@@ -2435,7 +2440,7 @@ class MusicBot(discord.Client):
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal()
 
-    async def cmd_shutdown(self, channel):
+    async def cmd_shutdown(self, channel, message, player):
         if 'save' in message.content:
             with open('audio_cache/queue.txt', 'w') as f:
                 print(player.current_entry.url, file=f)

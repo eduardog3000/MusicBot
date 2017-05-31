@@ -5,6 +5,7 @@ import logging
 import asyncio
 import audioop
 import subprocess
+import inspect
 
 from enum import Enum
 from array import array
@@ -13,8 +14,6 @@ from collections import deque
 from shutil import get_terminal_size
 from websockets.exceptions import InvalidState
 
-from discord.http import _func_
-
 from .utils import avg
 from .lib.event_emitter import EventEmitter
 from .constructs import Serializable, Serializer
@@ -22,6 +21,9 @@ from .exceptions import FFmpegError, FFmpegWarning
 
 log = logging.getLogger(__name__)
 
+def _func_():
+    # emulate __func__ from C++
+    return inspect.currentframe().f_back.f_code.co_name
 
 class PatchedBuff:
     """
