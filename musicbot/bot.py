@@ -1907,6 +1907,10 @@ class MusicBot(discord.Client):
                 delete_after=20
             )
 
+    async def cmd_stop(self, player, channel, author, message, permissions, voice_channel):
+        await self.cmd_clear(player, author)
+        await self.cmd_skip(player, channel, author, message, permissions, voice_channel)
+
     async def cmd_remove(self, author, message, permissions, player, index):
         """
         Usage:
