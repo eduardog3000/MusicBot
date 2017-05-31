@@ -1911,7 +1911,7 @@ class MusicBot(discord.Client):
         """
         Usage:
             {command_prefix}remove [number]
-	    
+
         Removes a song from the queue at the given position, where the position is a number from {command_prefix}queue.
         """
 
@@ -1943,6 +1943,36 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError("You can't remove the current song (skip it instead), or a song in a position that doesn't exist.", expire_in=20)
 
     cmd_r = cmd_remove
+
+    async def cmd_move(self, player, channel, oldindex, newindex):
+        """
+        Usage:
+            {command_prefix}move [number] [number]
+
+        Moves a song from the queue from the first given position to the second, where the positions are numbers from {command_prefix}queue.
+        Songs in and past the new position are simply moved 1 position down.
+        """
+
+        await self.send_typing(channel)
+
+        if not player.playlist.entries:
+            raise exceptions.CommandError("There are no songs queued.", expire_in=20)
+
+        try:
+            oldindex = int(oldindex)
+            newindex = int(newindex)
+        except ValueError:
+            raise exceptions.CommandError('One of those numbers is invalid.', expire_in=20)
+
+        if (0 < oldindex <= len(player.playlist.entries)) and (0 < newindex <= len(player.playlist.entries)):
+            try:
+                song_title = player.playlist.entries[oldindex - 1].title
+                player.playlist.move_entry(oldindex - 1, newindex - 1)
+
+            except IndexError:
+                raise exceptions.CommandError("Something went wrong while the song was being moved. Try again with a new position from `" + self.config.command_prefix + "queue`", expire_in=20)
+
+            return Response("\N{CHECK MARK} moved **" + song_title + "** to position **" + str(newindex) + "**", delete_after=20)
 
     async def cmd_volume(self, message, player, new_volume=None):
         """

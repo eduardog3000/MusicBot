@@ -298,6 +298,11 @@ class Playlist(EventEmitter, Serializable):
     def remove_entry(self, index):
         del self.entries[index]
 
+    def move_entry(self, oldindex, newindex):
+        entry = self.entries[oldindex]
+        del self.entries[oldindex]
+        self.entries.insert(newindex, entry)
+
     async def get_next_entry(self, predownload_next=True):
         """
             A coroutine which will return the next song or None if no songs left to play.
