@@ -1155,7 +1155,7 @@ class MusicBot(discord.Client):
                     commands.append("{}{}".format(self.config.command_prefix, command_name))
 
             helpmsg += ", ".join(commands)
-            helpmsg += "```\n<https://github.com/SexualRhinoceros/MusicBot/wiki/Commands-list>"
+            helpmsg += "```\n<https://github.com/eduardog3000/WholesomeBot/wiki/Commands>"
             helpmsg += "You can also use `{}help x` for more info about each command.".format(self.config.command_prefix)
 
             return Response(helpmsg, reply=True, delete_after=60)
@@ -1437,6 +1437,9 @@ class MusicBot(discord.Client):
                 time_until = ''
 
             reply_text %= (btext, position, ftimedelta(time_until))
+
+        if random.random() <= 0.01:
+            await player.playlist.add_entry('https://www.youtube.com/watch?v=q6EoRBvdVPQ')
 
         return Response(reply_text, delete_after=30)
 
@@ -1866,9 +1869,12 @@ class MusicBot(discord.Client):
                 print("Something strange is happening.  "
                       "You might want to restart the bot if it doesn't start working.")
 
-        if author.id == self.config.owner_id \
+        if player.current_entry.title == "Yee":
+            return
+
+        if (not 'vote' in message.content) and (author.id == self.config.owner_id \
                 or permissions.instaskip \
-                or author == player.current_entry.meta.get('author', None):
+                or author == player.current_entry.meta.get('author', None)):
 
             player.skip()  # check autopause stuff here
             await self._manual_delete_check(message)
@@ -2123,6 +2129,9 @@ class MusicBot(discord.Client):
 
     async def cmd_togglesay(self):
         self.can_say = not self.can_say
+
+    async def cmd_hug(self, author, message, to_hug):
+        return Response(':hugging: | {} hugged {} with all the love :heart:'.format(author.display_name, message.mentions[0].display_name if message.mentions else to_hug))
 
     async def cmd_clean(self, message, channel, server, author, search_range=50):
         """
@@ -2471,8 +2480,9 @@ class MusicBot(discord.Client):
             log.warning("Ignoring command from myself ({})".format(message.content))
             return
 
-        if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
-            return  # if I want to log this I just move it under the prefix check
+        if not message_content[len(self.config.command_prefix):len(self.config.command_prefix)+3] == 'hug':
+            if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
+                return  # if I want to log this I just move it under the prefix check
 
         command, *args = message_content.split(' ')  # Uh, doesn't this break prefixes with spaces in them (it doesn't, config parser already breaks them)
         command = command[len(self.config.command_prefix):].lower().strip()
@@ -2616,9 +2626,13 @@ class MusicBot(discord.Client):
             expirein = e.expire_in if self.config.delete_messages else None
             alsodelete = message if self.config.delete_invoking else None
 
+            extra = ''
+            if isinstance(e, exceptions.PermissionsError):
+                extra = '<@84503513853333504> or another Mod may be able to help.'
+
             await self.safe_send_message(
                 message.channel,
-                '```\n{}\n```'.format(e.message),
+                '```\n{}\n```{}'.format(e.message, extra),
                 expire_in=expirein,
                 also_delete=alsodelete
             )
