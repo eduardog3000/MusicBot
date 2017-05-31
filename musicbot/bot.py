@@ -2070,6 +2070,42 @@ class MusicBot(discord.Client):
         message = '\n'.join(lines)
         return Response(message, delete_after=30)
 
+    async def cmd_color(self, server, channel, author, color):
+        """
+        Usage:
+            {command_prefix}color [color]
+            {command_prefix}colour [colour] #Localization... Localisation? L10n.
+        Available colors are Red, Orange, Yellow, Green, Blue, Purple, and Pink.
+        To clear your color use {command_prefix}color clear.
+        """
+
+        color = color.title()
+        colors = ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Pink']
+        special_colors = ['irbzies', 'Srinanigans', 'jazzy', 'Nathan\'s color', 'arizonagang', 'Syd\'s Color']
+        emoji = [':heart:', '<:upvote:284135341873692672>', ':yellow_heart:', ':green_heart:', ':blue_heart:', ':purple_heart:', ':sparkling_heart:']
+
+        await self.send_typing(channel)
+
+        if(color in colors):
+            author.roles = [r for r in author.roles if r.name not in colors]
+            await self.add_roles(author, [r for r in server.roles if r.name == color][0])
+            return Response("{} Color set to {}.".format(emoji[colors.index(color)], color), delete_after=25)
+        elif(color in ['Clear', 'None', 'Reset']):
+            specials = [r.name for r in server.roles if r.name in special_colors and r in author.roles]
+            await self.remove_roles(author, *[r for r in server.roles if r.name in colors])
+            if not specials:
+                return Response(':black_heart: Color cleared.', delete_after=25)
+            else:
+                response = 'Normal color cleared, but you have{0} special color{1} (`{2}`), use `{3}color clrspecial` to clear your special color{1}. Once cleared, the only way to get a special color back is to ask a Discord Boss or Sub Mod.'.format(*([' a', ''] if len(specials) == 1 else ['', 's']), ', '.join(specials), self.config.command_prefix)
+                return Response(response, delete_after=25)
+        elif(color == "Clrspecial"):
+            await self.remove_roles(author, *[r for r in server.roles if r.name in special_colors])
+            return Response('Special color cleared. If you want it back, contact a Discord Boss or Sub Mod.', delete_after=25)
+        else:
+            raise exceptions.CommandError('Color not available. Available colors are Red, Orange, Yellow, Green, Blue, Purple, and Pink.\nTo clear your color use !color clear.', expire_in=25)
+
+    cmd_colour = cmd_color #Localization... Localisation? L10n.
+
     async def cmd_clean(self, message, channel, server, author, search_range=50):
         """
         Usage:
