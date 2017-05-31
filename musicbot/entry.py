@@ -2,6 +2,7 @@ import os
 import asyncio
 import logging
 import traceback
+import re
 
 from enum import Enum
 from .constructs import Serializable
