@@ -2363,11 +2363,23 @@ class MusicBot(discord.Client):
         return Response("\N{DASH SYMBOL}", delete_after=20)
 
     async def cmd_restart(self, channel):
+        if 'save' in message.content:
+            with open('audio_cache/queue.txt', 'w') as f:
+                print(player.current_entry.url, file=f)
+                for entry in player.playlist.entries:
+                    print(entry.url, file=f)
+
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal()
 
     async def cmd_shutdown(self, channel):
+        if 'save' in message.content:
+            with open('audio_cache/queue.txt', 'w') as f:
+                print(player.current_entry.url, file=f)
+                for entry in player.playlist.entries:
+                    print(entry.url, file=f)
+
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal()
