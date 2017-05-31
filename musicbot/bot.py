@@ -1907,7 +1907,7 @@ class MusicBot(discord.Client):
                 delete_after=20
             )
 
-    async def cmd_remove(self, message, player, index):
+    async def cmd_remove(self, author, message, permissions, player, index):
         """
         Usage:
             {command_prefix}remove [number]
@@ -1915,14 +1915,19 @@ class MusicBot(discord.Client):
         Removes a song from the queue at the given position, where the position is a number from {command_prefix}queue.
         """
 
-        if not player.playlist.entries:
-            raise exceptions.CommandError("There are no songs queued.", expire_in=20)
-
         try:
             index = int(index)
 
         except ValueError:
             raise exceptions.CommandError('{} is not a valid number.'.format(index), expire_in=20)
+
+        if not player.playlist.entries:
+            raise exceptions.CommandError("There are no songs queued.", expire_in=20)
+
+        if author.id != self.config.owner_id \
+                and not permissions.instaskip \
+                and author != player.playlist.entries[index-1].meta.get('author', None):
+            raise exceptions.PermissionsError('You don\'t have permission to remove that song.', expire_in=20)
 
         if 0 < index <= len(player.playlist.entries):
             try:
@@ -1936,6 +1941,8 @@ class MusicBot(discord.Client):
 
         else:
             raise exceptions.CommandError("You can't remove the current song (skip it instead), or a song in a position that doesn't exist.", expire_in=20)
+
+    cmd_r = cmd_remove
 
     async def cmd_volume(self, message, player, new_volume=None):
         """
