@@ -1,5 +1,6 @@
-discord.py[voice] ~= 0.13.0
+discord.py[voice]
 pip
 youtube_dl
 colorlog
 cffi --only-binary all; sys_platform == 'win32'
+gtts

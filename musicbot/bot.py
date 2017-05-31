@@ -24,6 +24,8 @@ from discord.enums import ChannelType
 from discord.ext.commands.bot import _get_variable
 from discord.http import _func_
 
+from gtts import gTTS
+
 from . import exceptions
 from . import downloader
 
@@ -64,6 +66,9 @@ class MusicBot(discord.Client):
 
         self.blacklist = set(load_file(self.config.blacklist_file))
         self.autoplaylist = load_file(self.config.auto_playlist_file)
+
+        self.can_say = False
+        self.sayl = 'en'
 
         self.aiolocks = defaultdict(asyncio.Lock)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
@@ -2105,6 +2110,19 @@ class MusicBot(discord.Client):
             raise exceptions.CommandError('Color not available. Available colors are Red, Orange, Yellow, Green, Blue, Purple, and Pink.\nTo clear your color use !color clear.', expire_in=25)
 
     cmd_colour = cmd_color #Localization... Localisation? L10n.
+
+    async def cmd_say(self, player, voice_channel, message):
+        if not self.can_say: return Response('The say command is disabled.', delete_after=25)
+        gTTS(text=message.content[4:], lang=self.sayl).save('/root/MusicBot/audio_cache/tts/tts.mp3')
+        voice_client = await self.get_voice_client(voice_channel)
+        voice_client.create_ffmpeg_player('/root/MusicBot/audio_cache/tts/tts.mp3').start()
+
+    async def cmd_sayl(self, lang):
+        if len(lang) == 2:
+            self.sayl = lang
+
+    async def cmd_togglesay(self):
+        self.can_say = not self.can_say
 
     async def cmd_clean(self, message, channel, server, author, search_range=50):
         """
