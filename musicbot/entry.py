@@ -83,7 +83,7 @@ class URLPlaylistEntry(BasePlaylistEntry):
         super().__init__()
 
         self.playlist = playlist
-        self.url = url
+        self.url = url if not 'skyfire.vimeocdn.com' in url else 'https://vimeo.com/' + url.split('/')[4]
         self.id = None
         self.icon = None
         if 'youtu' in url.lower():
