@@ -2513,6 +2513,21 @@ class MusicBot(discord.Client):
         await self.wait_until_ready()
 
         message_content = message.content.strip()
+		
+        reactions = {
+            'gay': '🏳️‍🌈',
+            'tree': '🌳',
+            'moon': '🌕',
+            'sun': '🌞',
+            'love': '❤',
+            'turtle': '🐢',
+            'wholesome': [x for x in message.server.emojis if x.name == 'wholesome'][0]
+        }
+        
+        for key, value in reactions.items():
+            if re.compile(r'\b' + key + r'\b', flags=re.IGNORECASE).search(message_content):
+                await self.add_reaction(message, value)
+		
         if not message_content.startswith(self.config.command_prefix):
             return
 
