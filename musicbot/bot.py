@@ -79,6 +79,9 @@ class MusicBot(discord.Client):
         self.aiolocks = defaultdict(asyncio.Lock)
         self.downloader = downloader.Downloader(download_folder='audio_cache')
 
+        self.react = True
+        self.disabled_reactions = []
+
         self._setup_logging()
 
         if not self.autoplaylist:
@@ -2167,8 +2170,19 @@ class MusicBot(discord.Client):
         if len(lang) == 2:
             self.sayl = lang
 
-    async def cmd_togglesay(self):
-        self.can_say = not self.can_say
+    async def cmd_toggle(self, totoggle):
+        totoggle = totoggle.lower()
+        
+        if totoggle == 'say':
+            self.can_say = not self.can_say
+        elif totoggle.startswith('react'):
+            args = totoggle.split(' ')
+            if len(args) == 1:
+                self.react = not self.react
+            elif args[1] in self.disabled_reactions:
+                self.disabled_reactions.remove(args[1])
+            else:
+                self.disabled_reactions.append(args[1])
 
     async def cmd_hug(self, author, message, to_hug):
         return Response(':hugging: | {} hugged {} with all the love :heart:'.format(author.display_name, message.mentions[0].display_name if message.mentions else to_hug))
@@ -2512,22 +2526,30 @@ class MusicBot(discord.Client):
     async def on_message(self, message):
         await self.wait_until_ready()
 
+        server = message.server
+
+        if message.author in [server.get_member('172002275412279296'), server.get_member('155149108183695360'), server.get_member('299679193594200064')]:
+            return
+
         message_content = message.content.strip()
-		
-        reactions = {
-            'gay': '🏳️‍🌈',
-            'tree': '🌳',
-            'moon': '🌕',
-            'sun': '🌞',
-            'love': '❤',
-            'turtle': '🐢',
-            'wholesome': [x for x in message.server.emojis if x.name == 'wholesome'][0]
-        }
+
+        if self.react:
+            reactions = {
+                'gay': [r'\bgays?\b', '🏳️‍🌈'],
+                'tree': [r'\btrees?\b', '🌳'],
+                'moon': [r'\bmoons?\b', '🌕'],
+                'sun': [r'\bsuns?\b', '🌞'],
+                'love': [r'\blove\b', '❤'],
+                'turtle': [r'\bturtles?\b', '🐢'],
+                'pizza': [r'\bpizzas?\b', '🍕'],
+                'wholesome': [r'\bwholesome\b', [x for x in message.server.emojis if x.name == 'wholesome'][0]],
+                'notwholesome': [r'\b(not |un)wholesome\b', [x for x in message.server.emojis if x.name == 'notwholesome'][0]]
+            }
         
-        for key, value in reactions.items():
-            if re.compile(r'\b' + key + r'\b', flags=re.IGNORECASE).search(message_content):
-                await self.add_reaction(message, value)
-		
+            for key, value in reactions.items():
+                if not key in self.disabled_reactions and re.compile(value[0], flags=re.IGNORECASE).search(message_content) and not (key == 'wholesome' and re.compile(reactions['notwholesome'][0], flags=re.IGNORECASE).search(message_content)):
+                    await self.add_reaction(message, value[1])
+
         if not message_content.startswith(self.config.command_prefix):
             return
 
