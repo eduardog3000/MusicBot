@@ -4,6 +4,7 @@ import time
 import shlex
 import shutil
 import random
+import re
 import inspect
 import logging
 import asyncio
