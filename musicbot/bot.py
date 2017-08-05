@@ -2171,19 +2171,19 @@ class MusicBot(discord.Client):
         if len(lang) == 2:
             self.sayl = lang
 
-    async def cmd_toggle(self, totoggle):
+    async def cmd_toggle(self, totoggle, emoji=''):
         totoggle = totoggle.lower()
-        
+        emoji = emoji.lower()
+
         if totoggle == 'say':
             self.can_say = not self.can_say
         elif totoggle.startswith('react'):
-            args = totoggle.split(' ')
-            if len(args) == 1:
+            if not emoji:
                 self.react = not self.react
-            elif args[1] in self.disabled_reactions:
-                self.disabled_reactions.remove(args[1])
+            elif emoji in self.disabled_reactions:
+                self.disabled_reactions.remove(emoji)
             else:
-                self.disabled_reactions.append(args[1])
+                self.disabled_reactions.append(emoji)
 
     async def cmd_hug(self, author, message, to_hug):
         return Response(':hugging: | {} hugged {} with all the love :heart:'.format(author.display_name, message.mentions[0].display_name if message.mentions else to_hug))
