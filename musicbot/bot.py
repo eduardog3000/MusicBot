@@ -2044,7 +2044,7 @@ class MusicBot(discord.Client):
                 raise exceptions.CommandError(
                     'Unreasonable volume provided: {}%. Provide a value between 1 and 100.'.format(new_volume), expire_in=20)
 
-    async def cmd_queue(self, channel, player, page='1'):
+    async def cmd_queue(self, channel, player, page='1', requested_by='True'):
         """
         Usage:
             {command_prefix}queue <page>
@@ -2054,6 +2054,8 @@ class MusicBot(discord.Client):
         """
 
         await self.send_typing(channel)
+
+        requested_by = requested_by in ['true', 'True']
 
         streaming = isinstance(player.current_entry, StreamPlaylistEntry)
         action = 'Playing' if not streaming else 'Streaming'
@@ -2103,7 +2105,7 @@ class MusicBot(discord.Client):
             titleline = '`{}.` **{}**'.format(i, item.title)
             infoline = '\t\t`[-{}/{}]`'.format(ftimedelta(timedelta(seconds=total_seconds - cur_progress)), ftimedelta(timedelta(seconds=item.duration)))
 
-            if item.meta.get('channel', False) and item.meta.get('author', False):
+            if item.meta.get('channel', False) and item.meta.get('author', False) and requested_by:
                 infoline += '\t- requested by **{}**'.format(item.meta['author'].name).strip()
 
             lines.append(titleline)
