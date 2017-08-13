@@ -2545,8 +2545,8 @@ class MusicBot(discord.Client):
                 'love': [r'\blove\b', '❤'],
                 'turtle': [r'\bturtles?\b', '🐢'],
                 'pizza': [r'\bpizzas?\b', '🍕'],
-                'wholesome': [r'\bwholesome\b', [x for x in message.server.emojis if x.name == 'wholesome'][0]],
-                'notwholesome': [r'\b(not |un)wholesome\b', [x for x in message.server.emojis if x.name == 'notwholesome'][0]]
+                'wholesome': [r'\bwholesome\b', ([x for x in message.server.emojis if x.name == 'wholesome'] or ['👍'])[0]],
+                'notwholesome': [r'\b(not |un)wholesome\b', ([x for x in message.server.emojis if x.name == 'notwholesome'] or ['👎'])[0]]
             }
         
             for key, value in reactions.items():
