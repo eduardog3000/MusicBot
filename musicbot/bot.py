@@ -12,6 +12,7 @@ import pathlib
 import traceback
 import math
 import inspect
+import pymysql
 
 allow_requests = True
 
@@ -1416,7 +1417,7 @@ class MusicBot(discord.Client):
         else:
             if permissions.max_song_length and info.get('duration', 0) > permissions.max_song_length:
                 raise exceptions.PermissionsError(
-                    "Song duration exceeds limit (%s > %s)" % (info['duration'], permissions.max_song_length),
+                    "Song duration exceeds limit (%s > %s)\nTry using !search [song] to find the right video." % (info['duration'], permissions.max_song_length),
                     expire_in=30
                 )
 
@@ -2446,24 +2447,12 @@ class MusicBot(discord.Client):
         await self.disconnect_voice_client(server)
         return Response("\N{DASH SYMBOL}", delete_after=20)
 
-    async def cmd_restart(self, channel, message, player):
-        if 'save' in message.content:
-            with open('audio_cache/queue.txt', 'w') as f:
-                print(player.current_entry.url, file=f)
-                for entry in player.playlist.entries:
-                    print(entry.url, file=f)
-
+    async def cmd_restart(self, channel):
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
         await self.disconnect_all_voice_clients()
         raise exceptions.RestartSignal()
 
-    async def cmd_shutdown(self, channel, message, player):
-        if 'save' in message.content:
-            with open('audio_cache/queue.txt', 'w') as f:
-                print(player.current_entry.url, file=f)
-                for entry in player.playlist.entries:
-                    print(entry.url, file=f)
-
+    async def cmd_shutdown(self, channel):
         await self.safe_send_message(channel, "\N{WAVING HAND SIGN}")
         await self.disconnect_all_voice_clients()
         raise exceptions.TerminateSignal()
@@ -2714,7 +2703,7 @@ class MusicBot(discord.Client):
             alsodelete = message if self.config.delete_invoking else None
 
             extra = ''
-            if isinstance(e, exceptions.PermissionsError):
+            if isinstance(e, exceptions.PermissionsError) and not 'Song duration exceeds limit' in e.message:
                 extra = '<@84503513853333504> or another Mod may be able to help.'
 
             await self.safe_send_message(
