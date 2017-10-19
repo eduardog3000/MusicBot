@@ -2525,6 +2525,19 @@ class MusicBot(discord.Client):
 
         message_content = message.content.strip()
 
+        banned_words = []
+
+        for word in banned_words:
+            if word in message_content.lower():
+                await self.delete_message(message)
+                em = discord.Embed(title=message.author.mention, description=message_content + "\n**" + word + "**")
+                em.set_author(name="Cuss Filter", icon_url=self.user.avatar_url)
+                timestamp = message.timestamp.isoformat()
+                timestamp.replace(T," | ")
+                em.add_Field(value = timestamp)
+                await self.send_message(server.get_channel('channel id here'), embed=em)
+                return
+
         if self.react:
             reactions = {
                 'gay': [r'\bgays?\b', '🏳️‍🌈'],
