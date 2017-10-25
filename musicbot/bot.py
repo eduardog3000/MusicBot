@@ -2249,6 +2249,122 @@ class MusicBot(discord.Client):
 
         return Response('Cleaned up {} message{}.'.format(deleted, 's' * bool(deleted)), delete_after=6)
 
+    async def cmd_warn(self, author, message):
+        warned = message.mentions[0]
+        warnedID = warned.id
+        reason = ' '.join(message.content.split(' ')[2:])
+
+        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+
+        try:
+            with c.cursor() as cur:
+                cur.execute('INSERT INTO `warnings` (`warnedID`, `moderatorID`, `message`, `datetime`) VALUES (%s, %s, %s, %s)', (warnedID, author.id, reason, message.timestamp.isoformat()))
+            c.commit()
+        finally:
+            c.close()
+
+        await self.send_message(warned, 'You have been warned by {} for `{}`.'.format(author.mention, reason))
+
+        embed=discord.Embed(title="")
+        embed.set_author(name="Warning", icon_url=warned.avatar_url or warned.default_avatar_url)
+        embed.add_field(name="User", value=warned.mention, inline=False)
+        embed.add_field(name="Moderator", value=author.mention, inline=False)
+        embed.add_field(name="Reason", value=reason, inline=False)
+        await self.send_message([x for x in message.server.channels if x.name == "m-logs"][0], embed=embed)
+
+        return Response('✅ ***{}#{} has been warned.***'.format(warned.name, warned.discriminator))
+
+    async def cmd_warnings(self, message, server):
+        warned = message.mentions[0]
+        warnedID = warned.id
+        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+
+        embed = discord.Embed(title='{} Warnings')
+
+        try:
+            with c.cursor() as cur:
+                cur.execute('SELECT * from `warnings` WHERE `warnedID` = %s', (warnedID,))
+                embed.set_author(name='{}#{} ({})'.format(warned.name, warned.discriminator, warnedID), icon_url=warned.avatar_url or warned.default_avatar_url)
+
+                timestamp = ''
+                moderator = ''
+                reason = ''
+                warnings = 0
+
+                for result in cur.fetchall():
+                    timestamp += '`{}`  {}\n'.format(str(result['warningID']).zfill(3), ':'.join(result['datetime'].split(':')[:-1]))
+                    mod = server.get_member(str(result['moderatorID']))
+                    moderator += '{}#{}\n'.format(mod.name, mod.discriminator)
+                    reason += (result['message'] if len(result['message']) <= 20 else result['message'][:16] + '...') + '\n'
+                    warnings += 1
+
+                embed.add_field(name='#  Timestamp', value=timestamp)
+                embed.add_field(name='Moderator', value=moderator)
+                embed.add_field(name='Reason', value=reason)
+
+                embed.title = embed.title.format(warnings)
+                embed.set_footer(text='Use `{}warning #` to see the full reason for a specific warning.'.format(self.config.command_prefix))
+        finally:
+            c.close()
+
+        if reason:
+            return embed
+        else:
+            return Response('***{}#{} has no warnings.***'.format(warned.name, warned.discriminator))
+
+    async def cmd_warning(self, message, server):
+        warningID = int(message.content.split(' ')[1])
+        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+
+        embed = discord.Embed(title='Warning {}'.format(warningID))
+
+        try:
+            with c.cursor() as cur:
+                cur.execute('SELECT * from `warnings` WHERE `warningID` = %s', (warningID,))
+
+                result = cur.fetchall()[0]
+                warned = server.get_member(str(result['warnedID']))
+                embed.set_author(name='{}#{} ({})'.format(warned.name, warned.discriminator, warned.id), icon_url=warned.avatar_url or warned.default_avatar_url)
+                mod = server.get_member(str(result['moderatorID']))
+
+                embed.add_field(name='Timestamp', value=result['datetime'], inline=False)
+                embed.add_field(name='Moderator', value='{}#{}\n'.format(mod.name, mod.discriminator), inline=False)
+                embed.add_field(name='Reason', value=result['message'], inline=False)
+        except:
+            return Response('***Warning number not found.***')
+        finally:
+            c.close()
+
+        return embed
+
+    async def cmd_wr(self, message):
+        warningID = message.content.split(' ')[1]
+
+        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+
+        try:
+            with c.cursor() as cur:
+                cur.execute('DELETE FROM `warnings` WHERE `warningID` = %s', (warningID,))
+            c.commit()
+        finally:
+            c.close()
+
+        return Response('***Warning removed.***')
+
+    async def cmd_wc(self, message):
+        warned = message.mentions[0]
+
+        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+
+        try:
+            with c.cursor() as cur:
+                cur.execute('DELETE FROM `warnings` WHERE `warnedID` = %s', (warned.id,))
+            c.commit()
+        finally:
+            c.close()
+
+        return Response('***Warnings cleared for {}#{}.***'.format(warned.name, warned.discriminator))
+
     async def cmd_pldump(self, channel, song_url):
         """
         Usage:
@@ -2562,7 +2678,7 @@ class MusicBot(discord.Client):
             log.warning("Ignoring command from myself ({})".format(message.content))
             return
 
-        if not message_content[len(self.config.command_prefix):len(self.config.command_prefix)+3] == 'hug':
+        if not message_content.split(' ')[0][len(self.config.command_prefix):] in ['hug', 'warn']:
             if self.config.bound_channels and message.channel.id not in self.config.bound_channels and not message.channel.is_private:
                 return  # if I want to log this I just move it under the prefix check
 
