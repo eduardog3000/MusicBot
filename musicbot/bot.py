@@ -1135,6 +1135,15 @@ class MusicBot(discord.Client):
 
         # t-t-th-th-that's all folks!
 
+    async def colors(self, server):
+        colors = [x for x in server.roles if x.position > 0 and x.position <= 7]
+        i = 0
+        while True:
+            print(colors[i])
+            await self.move_role(server, colors[i], 7)
+            i = ((i + 1) % 7)
+            await asyncio.sleep(1)
+
     async def cmd_help(self, command=None):
         """
         Usage:
@@ -2631,10 +2640,40 @@ class MusicBot(discord.Client):
 
         return Response(codeblock.format(result))
 
+    async def on_message_edit(self, before, after):
+        await self.wait_until_ready()
+
+        if not after.edited_timestamp:
+            return
+
+        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+
+        try:
+            with c.cursor() as cur:
+                cur.execute(
+                    'INSERT INTO `logs` (`message`, `server`, `channel`, `author`, `timestamp`, `content`, `is_edited`) VALUES (%s, %s, %s, %s, %s, %s, %s)',
+                    (after.id, after.server.id, after.channel.id, after.author.id, after.edited_timestamp.isoformat(), after.content, 1)
+                )
+            c.commit()
+        finally:
+            c.close()
+
     async def on_message(self, message):
         await self.wait_until_ready()
 
         server = message.server
+
+        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+
+        try:
+            with c.cursor() as cur:
+                cur.execute(
+                    'INSERT INTO `logs` (`message`, `server`, `channel`, `author`, `timestamp`, `content`, `is_edited`) VALUES (%s, %s, %s, %s, %s, %s, %s)',
+                    (message.id, server.id, message.channel.id, message.author.id, message.timestamp.isoformat(), message.content, 0)
+                )
+            c.commit()
+        finally:
+            c.close()
 
         if message.author in [server.get_member('172002275412279296'), server.get_member('155149108183695360'), server.get_member('299679193594200064')]:
             return

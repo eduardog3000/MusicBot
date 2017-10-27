@@ -66,11 +66,10 @@ class Config:
         self.auto_playlist_file = config.get('Files', 'AutoPlaylistFile', fallback=ConfigDefaults.auto_playlist_file)
         self.auto_playlist_removed_file = None
 
-        self.dbip = config.get('Warnings', 'DBip', fallback='localhost')
-        self.dbuser = config.get('Warnings', 'DBuser', fallback='root')
-        self.dbpass = config.get('Warnings', 'DBpass', fallback='')
-        self.dbname = config.get('Warnings', 'DBname', fallback='Warnings')
-        self.dbtable = config.get('Warnings', 'DBtable', fallback='warnings')
+        self.dbip = config.get('Database', 'DBip', fallback='localhost')
+        self.dbuser = config.get('Database', 'DBuser', fallback='root')
+        self.dbpass = config.get('Database', 'DBpass', fallback='')
+        self.dbname = config.get('Database', 'DBname', fallback='WholesomeDB')
 
         self.run_checks()
 
