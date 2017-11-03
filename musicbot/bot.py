@@ -604,6 +604,18 @@ class MusicBot(discord.Client):
         channel = entry.meta.get('channel', None)
         author = entry.meta.get('author', None)
 
+        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass,
+                            db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+
+        try:
+            with c.cursor() as cur:
+                cur.execute(
+                    'INSERT INTO `songs` (`filename`, `url`, `title`, `ytid`, `plays`) VALUES(%s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE `plays`=`plays`+1',
+                    (entry.filename, entry.url, entry.title, entry.id, 1))
+            c.commit()
+        finally:
+            c.close()
+
         if channel and author:
             last_np_msg = self.server_specific_data[channel.server]['last_np_msg']
             if last_np_msg and last_np_msg.channel == channel:
@@ -2373,6 +2385,40 @@ class MusicBot(discord.Client):
             c.close()
 
         return Response('***Warnings cleared for {}#{}.***'.format(warned.name, warned.discriminator))
+
+    async def cmd_played(self, message, index='1'):
+        try:
+            index = (int(index) - 1) * 10;
+        except ValueError:
+            raise exceptions.CommandError('Invalid value.', expire_in=20)
+
+        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass,
+                            db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+
+        embed = discord.Embed(color=0x16dab2)
+        embed.set_author(name='Song Rankings', icon_url=self.user.avatar_url)
+
+        try:
+            with c.cursor() as cur:
+                cur.execute('SELECT plays, title, url FROM songs ORDER BY plays DESC limit %s,10;', (index,))
+
+                i = index
+
+                embed.description = ''
+
+                for result in cur.fetchall():
+                    embed.description += '`{} play{}` - {}\n'.format(result['plays'], 's' if result['plays'] != 1 else '', result['title'])
+                    i += 1
+
+                if not embed.description:
+                    embed.description = 'Page # too high.'
+
+                embed.set_footer(text='Page {}. Use `{}played page#` to see further down the rankings list.'.format(
+                    int(index / 10) + 1, self.config.command_prefix))
+        finally:
+            c.close()
+
+        return embed
 
     async def cmd_pldump(self, channel, song_url):
         """
