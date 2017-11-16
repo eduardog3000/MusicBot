@@ -2304,7 +2304,7 @@ class MusicBot(discord.Client):
 
         try:
             with c.cursor() as cur:
-                cur.execute('SELECT * from `warnings` WHERE `warnedID` = %s', (warnedID,))
+                cur.execute('SELECT * FROM `warnings` WHERE `warnedID` = %s', (warnedID,))
                 embed.set_author(name='{}#{} ({})'.format(warned.name, warned.discriminator, warnedID), icon_url=warned.avatar_url or warned.default_avatar_url)
 
                 timestamp = ''
@@ -2341,7 +2341,7 @@ class MusicBot(discord.Client):
 
         try:
             with c.cursor() as cur:
-                cur.execute('SELECT * from `warnings` WHERE `warningID` = %s', (warningID,))
+                cur.execute('SELECT * FROM `warnings` WHERE `warningID` = %s', (warningID,))
 
                 result = cur.fetchall()[0]
                 warned = server.get_member(str(result['warnedID']))
@@ -2385,6 +2385,22 @@ class MusicBot(discord.Client):
             c.close()
 
         return Response('***Warnings cleared for {}#{}.***'.format(warned.name, warned.discriminator))
+
+    async def cmd_quote(self, message):
+        quoted = message.mentions[0]
+
+        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+
+        try:
+            with c.cursor() as cur:
+                cur.execute('SELECT * FROM `logs` WHERE `author` = %s ORDER BY RAND() LIMIT 1', (quoted.id,))
+
+                result = cur.fetchall()[0]
+                return Response('`{}` - {}#{}'.format(result['content'], quoted.name, quoted.discriminator))
+        except:
+            return Response('***User not found.***')
+        finally:
+            c.close()
 
     async def cmd_played(self, message, index='1'):
         try:
