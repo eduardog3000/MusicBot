@@ -1202,9 +1202,6 @@ class MusicBot(discord.Client):
         Blacklisted users are forbidden from using bot commands.
         """
 
-        if not user_mentions:
-            raise exceptions.CommandError("No users listed.", expire_in=20)
-
         if option not in ['+', '-', 'add', 'remove']:
             raise exceptions.CommandError(
                 'Invalid option "%s" specified, use +, -, add, or remove' % option, expire_in=20
@@ -1240,13 +1237,15 @@ class MusicBot(discord.Client):
                     reply=True, delete_after=10
                 )
 
-    async def cmd_id(self, author, user_mentions):
+    async def cmd_id(self, author, message):
         """
         Usage:
             {command_prefix}id [@user]
 
         Tells the user their id or the id of another user.
         """
+        user_mentions = message.mentions
+
         if not user_mentions:
             return Response('your id is `%s`' % author.id, reply=True, delete_after=35)
         else:
@@ -2270,10 +2269,10 @@ class MusicBot(discord.Client):
 
         return Response('Cleaned up {} message{}.'.format(deleted, 's' * bool(deleted)), delete_after=6)
 
-    async def cmd_warn(self, author, message):
-        warned = message.mentions[0]
+    async def cmd_warn(self, author, message, user_mentions, leftover_args):
+        warned = user_mentions[0]
         warnedID = warned.id
-        reason = ' '.join(message.content.split(' ')[2:])
+        reason = ' '.join(leftover_args[1:])
 
         c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
 
@@ -2295,8 +2294,8 @@ class MusicBot(discord.Client):
 
         return Response('✅ ***{}#{} has been warned.***'.format(warned.name, warned.discriminator))
 
-    async def cmd_warnings(self, message, server):
-        warned = message.mentions[0]
+    async def cmd_warnings(self, server, user_mentions):
+        warned = user_mentions[0]
         warnedID = warned.id
         c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
 
@@ -2333,8 +2332,8 @@ class MusicBot(discord.Client):
         else:
             return Response('***{}#{} has no warnings.***'.format(warned.name, warned.discriminator))
 
-    async def cmd_warning(self, message, server):
-        warningID = int(message.content.split(' ')[1])
+    async def cmd_warning(self, server, warningID):
+        warningID = int(warningID)
         c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
 
         embed = discord.Embed(title='Warning {}'.format(warningID))
@@ -2358,9 +2357,7 @@ class MusicBot(discord.Client):
 
         return embed
 
-    async def cmd_wr(self, message):
-        warningID = message.content.split(' ')[1]
-
+    async def cmd_wr(self, warningID):
         c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
 
         try:
@@ -2372,22 +2369,20 @@ class MusicBot(discord.Client):
 
         return Response('***Warning removed.***')
 
-    async def cmd_wc(self, message):
-        warned = message.mentions[0]
-
+    async def cmd_wc(self, user_mentions):
         c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
 
         try:
             with c.cursor() as cur:
-                cur.execute('DELETE FROM `warnings` WHERE `warnedID` = %s', (warned.id,))
+                cur.execute('DELETE FROM `warnings` WHERE `warnedID` = %s', (user_mentions[0].id,))
             c.commit()
         finally:
             c.close()
 
         return Response('***Warnings cleared for {}#{}.***'.format(warned.name, warned.discriminator))
 
-    async def cmd_quote(self, message):
-        quoted = message.mentions[0]
+    async def cmd_quote(self, user_mentions):
+        quoted = user_mentions[0]
 
         c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
 
@@ -2837,10 +2832,18 @@ class MusicBot(discord.Client):
                 handler_kwargs['permissions'] = user_permissions
 
             if params.pop('user_mentions', None):
-                handler_kwargs['user_mentions'] = list(map(message.server.get_member, message.raw_mentions))
+                user_mentions = list(map(message.server.get_member, message.raw_mentions))
+                if user_mentions:
+                    handler_kwargs['user_mentions'] = user_mentions
+                else:
+                    raise exceptions.CommandError('User mention(s) needed.')
 
             if params.pop('channel_mentions', None):
-                handler_kwargs['channel_mentions'] = list(map(message.server.get_channel, message.raw_channel_mentions))
+                channel_mentions = list(map(message.server.get_channel, message.raw_channel_mentions))
+                if channel_mentions:
+                    handler_kwargs['channel_mentions'] = channel_mentions
+                else:
+                    raise exceptions.CommandError('Channel mention(s) needed.')
 
             if params.pop('voice_channel', None):
                 handler_kwargs['voice_channel'] = message.server.me.voice_channel
