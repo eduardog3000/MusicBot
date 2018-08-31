@@ -2737,6 +2737,9 @@ class MusicBot(discord.Client):
 
         message_content = message.content.strip()
 
+        if re.match(r"((this|that)( i|')s( so)? sad,? )?(alexa|wholesome( ?bot)?),? play .*", message_content, flags=re.IGNORECASE):
+            message_content = re.sub(r"((this|that)( i|')s( so)? sad,? )?(alexa|wholesome( ?bot)?),? play", '!play', message_content, flags=re.IGNORECASE)
+
         banned_words = []
 
         for word in banned_words:
