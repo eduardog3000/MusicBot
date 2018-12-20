@@ -1474,6 +1474,21 @@ class MusicBot(discord.Client):
             await player.playlist.add_entry('https://www.youtube.com/watch?v=q6EoRBvdVPQ')
 
         return Response(reply_text, delete_after=30)
+	
+    async def cmd_saltandpepper(self, player, channel, author):
+        await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
+        await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
+        await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
+        await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
+        await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
+        await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
+        await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
+        await player.playlist.add_entry('https://www.youtube.com/watch?v=kWvbJsB0OBc')
+        await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
+        await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
+        await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
+
+        await player.playlist.add_entry('https://www.youtube.com/watch?v=QnkrL42R7gk')
 
     async def _cmd_play_playlist_async(self, player, channel, author, permissions, playlist_url, extractor_type):
         """
