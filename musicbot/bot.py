@@ -2777,7 +2777,7 @@ class MusicBot(discord.Client):
                 'love': [r'\blove\b', '❤'],
                 'turtle': [r'\bturtles?\b', '🐢'],
                 'pizza': [r'\bpizzas?\b', '🍕'],
-                'water': [r'\b(waters?|thirsty|hydrat(e|ion|ing))\b', '🚰'],
+                'water': [r'\b(waters?|thirsty|hydrat(e|ion|ing|ed|<@!84503513853333504>))\b', '🚰'],
                 'wholesome': [r'\bwholesome\b', ([x for x in message.server.emojis if x.name == 'wholesome'] or ['👍'])[0]],
                 'notwholesome': [r'\b(not |un)wholesome\b', ([x for x in message.server.emojis if x.name == 'notwholesome'] or ['👎'])[0]]
             }
