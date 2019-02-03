@@ -1474,7 +1474,7 @@ class MusicBot(discord.Client):
             await player.playlist.add_entry('https://www.youtube.com/watch?v=q6EoRBvdVPQ')
 
         return Response(reply_text, delete_after=30)
-	
+    
     async def cmd_saltandpepper(self, player, channel, author):
         await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
         await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
@@ -2732,20 +2732,21 @@ class MusicBot(discord.Client):
 
     async def on_message(self, message):
         await self.wait_until_ready()
-
+		
         server = message.server
+        
+        if not message.channel.id in ['283770365082206209', '283994802356224000', '283770506644160512', '283770483609042946', '292166688281985024', '340694027529617409', '283771333962366977']:
+            c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
 
-        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
-
-        try:
-            with c.cursor() as cur:
-                cur.execute(
-                    'INSERT INTO `logs` (`message`, `server`, `channel`, `author`, `timestamp`, `content`, `is_edited`) VALUES (%s, %s, %s, %s, %s, %s, %s)',
-                    (message.id, server.id, message.channel.id, message.author.id, message.timestamp.isoformat(), message.content, 0)
-                )
-            c.commit()
-        finally:
-            c.close()
+            try:
+                with c.cursor() as cur:
+                    cur.execute(
+                        'INSERT INTO `logs` (`message`, `server`, `channel`, `author`, `timestamp`, `content`, `is_edited`) VALUES (%s, %s, %s, %s, %s, %s, %s)',
+                        (message.id, server.id, message.channel.id, message.author.id, message.timestamp.isoformat(), message.content, 0)
+                    )
+                c.commit()
+            finally:
+                c.close()
 
         if message.author in [server.get_member('172002275412279296'), server.get_member('155149108183695360'), server.get_member('299679193594200064')]:
             return
