@@ -1765,7 +1765,7 @@ class MusicBot(discord.Client):
 
             embed.title = player.current_entry.title
             embed.url = player.current_entry.url
-            embed.set_thumbnail(url=player.current_entry.icon or Embed.Empty)
+            embed.set_thumbnail(url=player.current_entry.icon or discord.Embed.Empty)
 
             if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
                 embed.description = '{} - requested by **{}**'.format(prog_str, player.current_entry.meta['author'].name)
@@ -2111,7 +2111,7 @@ class MusicBot(discord.Client):
 
             embed.title = player.current_entry.title
             embed.url = player.current_entry.url
-            embed.set_thumbnail(url=player.current_entry.icon or Embed.Empty)
+            embed.set_thumbnail(url=player.current_entry.icon or discord.Embed.Empty)
 
             if player.current_entry.meta.get('channel', False) and player.current_entry.meta.get('author', False):
                 embed.description = '{} - requested by **{}**'.format(prog_str, player.current_entry.meta['author'].name)
