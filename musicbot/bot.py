@@ -2402,11 +2402,14 @@ class MusicBot(discord.Client):
         c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
 
         try:
-            with c.cursor() as cur:
-                cur.execute('SELECT * FROM `logs` WHERE `author` = %s ORDER BY RAND() LIMIT 1', (quoted.id,))
+            for i in range(10):
+                with c.cursor() as cur:
+                    cur.execute('SELECT * FROM `logs` WHERE `author` = %s ORDER BY RAND() LIMIT 1', (quoted.id,))
 
-                result = cur.fetchall()[0]
-                return Response('`{}` - {}#{}'.format(result['content'], quoted.name, quoted.discriminator))
+                    result = cur.fetchall()[0]
+                    if result['channel'] != '284114227608944641' and result['content'] != '' and self.get_message(result['channel'], result['message']) is not None:
+                        return Response('`{}` - {}#{}'.format(result['content'], quoted.name, quoted.discriminator))
+            return Response('***Could not find any non-deleted messages from that user, try again.***')
         except:
             return Response('***User not found.***')
         finally:
