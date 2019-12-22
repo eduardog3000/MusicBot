@@ -2199,7 +2199,7 @@ class MusicBot(discord.Client):
             r'trans(gender|sexual)?': 'Trans',
             r'transmasc(uline)?': 'Transmasc',
             r'transfem(me)?': 'Transfemme',
-            r'n(on)?-?b(inary)?': 'Non-Binary',
+            r'e?n(on)?-?b((inar)?y)?': 'Non-Binary',
             r'g(ender)?q(ueer)?': 'Genderqueer',
             r'demigirl': 'Demigirl',
             r'demi(boy|guy)': 'Demiboy',
