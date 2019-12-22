@@ -12,7 +12,10 @@ import pathlib
 import traceback
 import math
 import inspect
-import pymysql
+# import pymysql
+# import sqlite3
+
+from .lib.redict import redict
 
 allow_requests = True
 
@@ -604,17 +607,17 @@ class MusicBot(discord.Client):
         channel = entry.meta.get('channel', None)
         author = entry.meta.get('author', None)
 
-        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass,
-                            db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
-
-        try:
-            with c.cursor() as cur:
-                cur.execute(
-                    'INSERT INTO `songs` (`filename`, `url`, `title`, `ytid`, `plays`) VALUES(%s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE `plays`=`plays`+1',
-                    (entry.filename, entry.url, entry.title, entry.id, 1))
-            c.commit()
-        finally:
-            c.close()
+        # c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass,
+        #                     db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+        #
+        # try:
+        #     with c.cursor() as cur:
+        #         cur.execute(
+        #             'INSERT INTO `songs` (`filename`, `url`, `title`, `ytid`, `plays`) VALUES(%s, %s, %s, %s, %s) ON DUPLICATE KEY UPDATE `plays`=`plays`+1',
+        #             (entry.filename, entry.url, entry.title, entry.id, 1))
+        #     c.commit()
+        # finally:
+        #     c.close()
 
         if channel and author:
             last_np_msg = self.server_specific_data[channel.server]['last_np_msg']
@@ -1474,7 +1477,7 @@ class MusicBot(discord.Client):
             await player.playlist.add_entry('https://www.youtube.com/watch?v=q6EoRBvdVPQ')
 
         return Response(reply_text, delete_after=30)
-    
+
     async def cmd_saltandpepper(self, player, channel, author):
         await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
         await player.playlist.add_entry('https://www.youtube.com/watch?v=Ga3I5DTIA-E')
@@ -2163,6 +2166,58 @@ class MusicBot(discord.Client):
 
     cmd_q = cmd_queue
 
+    async def cmd_role(self, server, channel, author, role):
+        """
+        Usage:
+            {command_prefix)role [role_name]
+        Adds a predefined role. Roles exist for Sexuality, Gender Identity, and Pronouns.
+        Ask a mod if you think a role should be added.
+        To clear: {command_prefix}role clear
+        """
+        await self.send_typing(channel)
+
+        # roles = [
+        #     # Sexualities
+        #     'Lesbian', 'Gay', 'Bi', 'Pan', 'Ace',
+        #     # Gender Identities
+        #     'MtF', 'FtM', 'Non-Binary', 'Genderqueer', 'Demigirl', 'Demiboy',
+        #     # Pronouns
+        #     'He/Him', 'She/Her', 'They/Them', 'Any Pronoun'
+        # ]
+
+        roles = redict({
+            # Sexualities
+            r'lesbian': 'Lesbian',
+            r'bi(sexual)?': 'Bi',
+            r'gay': 'Gay',
+            r'pan(sexual)?': 'Pan',
+            r'a[c|s]e(xual)?': 'Ace',
+            # Gender Identities
+            r'm(ale)? ?(to?|-) ?f(emale)?': 'MtF',
+            r'fe(male)? ?(to?|-) ?m(ale)?': 'FtM',
+            r'n(on)?-?b(inary)?': 'Non-Binary',
+            r'g(ender)?q(ueer)?': 'Genderqueer',
+            r'demigirl': 'Demigirl',
+            r'demi(boy|guy)': 'Demiboy',
+            # Pronouns
+            r'((he|hi[ms])/?){1,3}': 'He/Him',
+            r'((she|hers?)/?){1,3}': 'She/Her',
+            r'(the([ym]|irs?)/?){1,3}': 'They/Them',
+            r'any( pronoun)?': 'Any Pronoun'
+        })
+
+        if re.match('clear', role, re.IGNORECASE):
+            await self.remove_roles(author, *[r for r in server.roles if r.name in roles])
+            return Response('Identity roles cleared.', delete_after=25)
+
+        if role in roles:
+            await self.add_roles(author, next(r for r in server.roles if r.name == roles[role]))
+            return Response('Added {} role.'.format(roles[role]), delete_after=25)
+        else:
+            return Response('Role not found. Check your spelling or ask a mod to add it.', delete_after=25)
+
+    cmd_iam = cmd_role
+
     async def cmd_color(self, server, channel, author, color):
         """
         Usage:
@@ -2181,7 +2236,7 @@ class MusicBot(discord.Client):
 
         if(color in colors):
             author.roles = [r for r in author.roles if r.name not in colors]
-            await self.add_roles(author, [r for r in server.roles if r.name == color][0])
+            await self.add_roles(author, next(r for r in server.roles if r.name == color))
             return Response("{} Color set to {}.".format(emoji[colors.index(color)], color), delete_after=25)
         elif(color in ['Clear', 'None', 'Reset']):
             specials = [r.name for r in server.roles if r.name in special_colors and r in author.roles]
@@ -2197,7 +2252,7 @@ class MusicBot(discord.Client):
         else:
             raise exceptions.CommandError('Color not available. Available colors are Red, Orange, Yellow, Green, Blue, Purple, and Pink.\nTo clear your color use !color clear.', expire_in=25)
 
-    cmd_colour = cmd_color #Localization... Localisation? L10n.
+    cmd_colour = cmd_color # Localization... Localisation? L10n.
 
     async def cmd_say(self, player, voice_channel, message):
         if not self.can_say: return Response('The say command is disabled.', delete_after=25)
@@ -2289,14 +2344,14 @@ class MusicBot(discord.Client):
         warnedID = warned.id
         reason = ' '.join(leftover_args[1:])
 
-        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
-
-        try:
-            with c.cursor() as cur:
-                cur.execute('INSERT INTO `warnings` (`warnedID`, `moderatorID`, `message`, `datetime`) VALUES (%s, %s, %s, %s)', (warnedID, author.id, reason, message.timestamp.isoformat()))
-            c.commit()
-        finally:
-            c.close()
+        # c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+        #
+        # try:
+        #     with c.cursor() as cur:
+        #         cur.execute('INSERT INTO `warnings` (`warnedID`, `moderatorID`, `message`, `datetime`) VALUES (%s, %s, %s, %s)', (warnedID, author.id, reason, message.timestamp.isoformat()))
+        #     c.commit()
+        # finally:
+        #     c.close()
 
         await self.send_message(warned, 'You have been warned by {} for `{}`.'.format(author.mention, reason))
 
@@ -2309,145 +2364,145 @@ class MusicBot(discord.Client):
 
         return Response('✅ ***{}#{} has been warned.***'.format(warned.name, warned.discriminator))
 
-    async def cmd_warnings(self, server, user_mentions):
-        warned = user_mentions[0]
-        warnedID = warned.id
-        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
-
-        embed = discord.Embed(title='{} Warnings')
-
-        try:
-            with c.cursor() as cur:
-                cur.execute('SELECT * FROM `warnings` WHERE `warnedID` = %s', (warnedID,))
-                embed.set_author(name='{}#{} ({})'.format(warned.name, warned.discriminator, warnedID), icon_url=warned.avatar_url or warned.default_avatar_url)
-
-                timestamp = ''
-                moderator = ''
-                reason = ''
-                warnings = 0
-
-                for result in cur.fetchall():
-                    timestamp += '`{}`  {}\n'.format(str(result['warningID']).zfill(3), ':'.join(result['datetime'].split(':')[:-1]))
-                    mod = server.get_member(str(result['moderatorID']))
-                    moderator += '{}#{}\n'.format(mod.name, mod.discriminator)
-                    reason += (result['message'] if len(result['message']) <= 20 else result['message'][:16] + '...') + '\n'
-                    warnings += 1
-
-                embed.add_field(name='#  Timestamp', value=timestamp)
-                embed.add_field(name='Moderator', value=moderator)
-                embed.add_field(name='Reason', value=reason)
-
-                embed.title = embed.title.format(warnings)
-                embed.set_footer(text='Use `{}warning #` to see the full reason for a specific warning.'.format(self.config.command_prefix))
-        finally:
-            c.close()
-
-        if reason:
-            return embed
-        else:
-            return Response('***{}#{} has no warnings.***'.format(warned.name, warned.discriminator))
-
-    async def cmd_warning(self, server, warningID):
-        warningID = int(warningID)
-        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
-
-        embed = discord.Embed(title='Warning {}'.format(warningID))
-
-        try:
-            with c.cursor() as cur:
-                cur.execute('SELECT * FROM `warnings` WHERE `warningID` = %s', (warningID,))
-
-                result = cur.fetchall()[0]
-                warned = server.get_member(str(result['warnedID']))
-                embed.set_author(name='{}#{} ({})'.format(warned.name, warned.discriminator, warned.id), icon_url=warned.avatar_url or warned.default_avatar_url)
-                mod = server.get_member(str(result['moderatorID']))
-
-                embed.add_field(name='Timestamp', value=result['datetime'], inline=False)
-                embed.add_field(name='Moderator', value='{}#{}\n'.format(mod.name, mod.discriminator), inline=False)
-                embed.add_field(name='Reason', value=result['message'], inline=False)
-        except:
-            return Response('***Warning number not found.***')
-        finally:
-            c.close()
-
-        return embed
-
-    async def cmd_wr(self, warningID):
-        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
-
-        try:
-            with c.cursor() as cur:
-                cur.execute('DELETE FROM `warnings` WHERE `warningID` = %s', (warningID,))
-            c.commit()
-        finally:
-            c.close()
-
-        return Response('***Warning removed.***')
-
-    async def cmd_wc(self, user_mentions):
-        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
-
-        try:
-            with c.cursor() as cur:
-                cur.execute('DELETE FROM `warnings` WHERE `warnedID` = %s', (user_mentions[0].id,))
-            c.commit()
-        finally:
-            c.close()
-
-        return Response('***Warnings cleared for {}#{}.***'.format(warned.name, warned.discriminator))
-
-    async def cmd_quote(self, user_mentions):
-        quoted = user_mentions[0]
-
-        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
-
-        try:
-            for i in range(10):
-                with c.cursor() as cur:
-                    cur.execute('SELECT * FROM `logs` WHERE `author` = %s ORDER BY RAND() LIMIT 1', (quoted.id,))
-
-                    result = cur.fetchall()[0]
-                    if result['channel'] != '284114227608944641' and result['content'] != '' and self.get_message(result['channel'], result['message']) is not None:
-                        return Response('`{}` - {}#{}'.format(result['content'], quoted.name, quoted.discriminator))
-            return Response('***Could not find any non-deleted messages from that user, try again.***')
-        except:
-            return Response('***User not found.***')
-        finally:
-            c.close()
-
-    async def cmd_played(self, message, index='1'):
-        try:
-            index = (int(index) - 1) * 10;
-        except ValueError:
-            raise exceptions.CommandError('Invalid value.', expire_in=20)
-
-        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass,
-                            db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
-
-        embed = discord.Embed(color=0x16dab2)
-        embed.set_author(name='Song Rankings', icon_url=self.user.avatar_url)
-
-        try:
-            with c.cursor() as cur:
-                cur.execute('SELECT plays, title, url FROM songs ORDER BY plays DESC limit %s,10;', (index,))
-
-                i = index
-
-                embed.description = ''
-
-                for result in cur.fetchall():
-                    embed.description += '`{} play{}` - {}\n'.format(result['plays'], 's' if result['plays'] != 1 else '', result['title'])
-                    i += 1
-
-                if not embed.description:
-                    embed.description = 'Page # too high.'
-
-                embed.set_footer(text='Page {}. Use `{}played page#` to see further down the rankings list.'.format(
-                    int(index / 10) + 1, self.config.command_prefix))
-        finally:
-            c.close()
-
-        return embed
+    # async def cmd_warnings(self, server, user_mentions):
+    #     warned = user_mentions[0]
+    #     warnedID = warned.id
+    #     c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+    #
+    #     embed = discord.Embed(title='{} Warnings')
+    #
+    #     try:
+    #         with c.cursor() as cur:
+    #             cur.execute('SELECT * FROM `warnings` WHERE `warnedID` = %s', (warnedID,))
+    #             embed.set_author(name='{}#{} ({})'.format(warned.name, warned.discriminator, warnedID), icon_url=warned.avatar_url or warned.default_avatar_url)
+    #
+    #             timestamp = ''
+    #             moderator = ''
+    #             reason = ''
+    #             warnings = 0
+    #
+    #             for result in cur.fetchall():
+    #                 timestamp += '`{}`  {}\n'.format(str(result['warningID']).zfill(3), ':'.join(result['datetime'].split(':')[:-1]))
+    #                 mod = server.get_member(str(result['moderatorID']))
+    #                 moderator += '{}#{}\n'.format(mod.name, mod.discriminator)
+    #                 reason += (result['message'] if len(result['message']) <= 20 else result['message'][:16] + '...') + '\n'
+    #                 warnings += 1
+    #
+    #             embed.add_field(name='#  Timestamp', value=timestamp)
+    #             embed.add_field(name='Moderator', value=moderator)
+    #             embed.add_field(name='Reason', value=reason)
+    #
+    #             embed.title = embed.title.format(warnings)
+    #             embed.set_footer(text='Use `{}warning #` to see the full reason for a specific warning.'.format(self.config.command_prefix))
+    #     finally:
+    #         c.close()
+    #
+    #     if reason:
+    #         return embed
+    #     else:
+    #         return Response('***{}#{} has no warnings.***'.format(warned.name, warned.discriminator))
+    #
+    # async def cmd_warning(self, server, warningID):
+    #     warningID = int(warningID)
+    #     c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+    #
+    #     embed = discord.Embed(title='Warning {}'.format(warningID))
+    #
+    #     try:
+    #         with c.cursor() as cur:
+    #             cur.execute('SELECT * FROM `warnings` WHERE `warningID` = %s', (warningID,))
+    #
+    #             result = cur.fetchall()[0]
+    #             warned = server.get_member(str(result['warnedID']))
+    #             embed.set_author(name='{}#{} ({})'.format(warned.name, warned.discriminator, warned.id), icon_url=warned.avatar_url or warned.default_avatar_url)
+    #             mod = server.get_member(str(result['moderatorID']))
+    #
+    #             embed.add_field(name='Timestamp', value=result['datetime'], inline=False)
+    #             embed.add_field(name='Moderator', value='{}#{}\n'.format(mod.name, mod.discriminator), inline=False)
+    #             embed.add_field(name='Reason', value=result['message'], inline=False)
+    #     except:
+    #         return Response('***Warning number not found.***')
+    #     finally:
+    #         c.close()
+    #
+    #     return embed
+    #
+    # async def cmd_wr(self, warningID):
+    #     c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+    #
+    #     try:
+    #         with c.cursor() as cur:
+    #             cur.execute('DELETE FROM `warnings` WHERE `warningID` = %s', (warningID,))
+    #         c.commit()
+    #     finally:
+    #         c.close()
+    #
+    #     return Response('***Warning removed.***')
+    #
+    # async def cmd_wc(self, user_mentions):
+    #     c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+    #
+    #     try:
+    #         with c.cursor() as cur:
+    #             cur.execute('DELETE FROM `warnings` WHERE `warnedID` = %s', (user_mentions[0].id,))
+    #         c.commit()
+    #     finally:
+    #         c.close()
+    #
+    #     return Response('***Warnings cleared for {}#{}.***'.format(warned.name, warned.discriminator))
+    #
+    # async def cmd_quote(self, user_mentions):
+    #     quoted = user_mentions[0]
+    #
+    #     c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+    #
+    #     try:
+    #         for i in range(10):
+    #             with c.cursor() as cur:
+    #                 cur.execute('SELECT * FROM `logs` WHERE `author` = %s ORDER BY RAND() LIMIT 1', (quoted.id,))
+    #
+    #                 result = cur.fetchall()[0]
+    #                 if result['channel'] != '284114227608944641' and result['content'] != '' and self.get_message(result['channel'], result['message']) is not None:
+    #                     return Response('`{}` - {}#{}'.format(result['content'], quoted.name, quoted.discriminator))
+    #         return Response('***Could not find any non-deleted messages from that user, try again.***')
+    #     except:
+    #         return Response('***User not found.***')
+    #     finally:
+    #         c.close()
+    #
+    # async def cmd_played(self, message, index='1'):
+    #     try:
+    #         index = (int(index) - 1) * 10;
+    #     except ValueError:
+    #         raise exceptions.CommandError('Invalid value.', expire_in=20)
+    #
+    #     c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass,
+    #                         db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+    #
+    #     embed = discord.Embed(color=0x16dab2)
+    #     embed.set_author(name='Song Rankings', icon_url=self.user.avatar_url)
+    #
+    #     try:
+    #         with c.cursor() as cur:
+    #             cur.execute('SELECT plays, title, url FROM songs ORDER BY plays DESC limit %s,10;', (index,))
+    #
+    #             i = index
+    #
+    #             embed.description = ''
+    #
+    #             for result in cur.fetchall():
+    #                 embed.description += '`{} play{}` - {}\n'.format(result['plays'], 's' if result['plays'] != 1 else '', result['title'])
+    #                 i += 1
+    #
+    #             if not embed.description:
+    #                 embed.description = 'Page # too high.'
+    #
+    #             embed.set_footer(text='Page {}. Use `{}played page#` to see further down the rankings list.'.format(
+    #                 int(index / 10) + 1, self.config.command_prefix))
+    #     finally:
+    #         c.close()
+    #
+    #     return embed
 
     async def cmd_pldump(self, channel, song_url):
         """
@@ -2715,41 +2770,41 @@ class MusicBot(discord.Client):
 
         return Response(codeblock.format(result))
 
-    async def on_message_edit(self, before, after):
-        await self.wait_until_ready()
-
-        if not after.edited_timestamp:
-            return
-
-        c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
-
-        try:
-            with c.cursor() as cur:
-                cur.execute(
-                    'INSERT INTO `logs` (`message`, `server`, `channel`, `author`, `timestamp`, `content`, `is_edited`) VALUES (%s, %s, %s, %s, %s, %s, %s)',
-                    (after.id, after.server.id, after.channel.id, after.author.id, after.edited_timestamp.isoformat(), after.content, 1)
-                )
-            c.commit()
-        finally:
-            c.close()
+    # async def on_message_edit(self, before, after):
+    #     await self.wait_until_ready()
+    #
+    #     if not after.edited_timestamp:
+    #         return
+    #
+    #     c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+    #
+    #     try:
+    #         with c.cursor() as cur:
+    #             cur.execute(
+    #                 'INSERT INTO `logs` (`message`, `server`, `channel`, `author`, `timestamp`, `content`, `is_edited`) VALUES (%s, %s, %s, %s, %s, %s, %s)',
+    #                 (after.id, after.server.id, after.channel.id, after.author.id, after.edited_timestamp.isoformat(), after.content, 1)
+    #             )
+    #         c.commit()
+    #     finally:
+    #         c.close()
 
     async def on_message(self, message):
         await self.wait_until_ready()
-		
-        server = message.server
-        
-        if not message.channel.id in ['283770365082206209', '283994802356224000', '283770506644160512', '283770483609042946', '292166688281985024', '340694027529617409', '283771333962366977']:
-            c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
 
-            try:
-                with c.cursor() as cur:
-                    cur.execute(
-                        'INSERT INTO `logs` (`message`, `server`, `channel`, `author`, `timestamp`, `content`, `is_edited`) VALUES (%s, %s, %s, %s, %s, %s, %s)',
-                        (message.id, server.id, message.channel.id, message.author.id, message.timestamp.isoformat(), message.content, 0)
-                    )
-                c.commit()
-            finally:
-                c.close()
+        server = message.server
+
+        # if not message.channel.id in ['283770365082206209', '283994802356224000', '283770506644160512', '283770483609042946', '292166688281985024', '340694027529617409', '283771333962366977']:
+        #     c = pymysql.connect(host=self.config.dbip, user=self.config.dbuser, password=self.config.dbpass, db=self.config.dbname, charset='utf8', cursorclass=pymysql.cursors.DictCursor)
+        #
+        #     try:
+        #         with c.cursor() as cur:
+        #             cur.execute(
+        #                 'INSERT INTO `logs` (`message`, `server`, `channel`, `author`, `timestamp`, `content`, `is_edited`) VALUES (%s, %s, %s, %s, %s, %s, %s)',
+        #                 (message.id, server.id, message.channel.id, message.author.id, message.timestamp.isoformat(), message.content, 0)
+        #             )
+        #         c.commit()
+        #     finally:
+        #         c.close()
 
         if message.author in [server.get_member('172002275412279296'), server.get_member('155149108183695360'), server.get_member('299679193594200064')]:
             return
@@ -2785,7 +2840,7 @@ class MusicBot(discord.Client):
                 'wholesome': [r'\bwholesome\b', ([x for x in message.server.emojis if x.name == 'wholesome'] or ['👍'])[0]],
                 'notwholesome': [r'\b(not |un)wholesome\b', ([x for x in message.server.emojis if x.name == 'notwholesome'] or ['👎'])[0]]
             }
-        
+
             for key, value in reactions.items():
                 if not key in self.disabled_reactions and re.compile(value[0], flags=re.IGNORECASE).search(message_content) and not (key == 'wholesome' and re.compile(reactions['notwholesome'][0], flags=re.IGNORECASE).search(message_content)):
                     await self.add_reaction(message, value[1])
