@@ -2195,6 +2195,9 @@ class MusicBot(discord.Client):
             # Gender Identities
             r'm(ale)? ?(to?|-) ?f(emale)?': 'MtF',
             r'fe(male)? ?(to?|-) ?m(ale)?': 'FtM',
+            r'trans': 'Trans',
+            r'transmasc(uline)?': 'Transmasc',
+            r'transfem(me)?': 'Transfemme',
             r'n(on)?-?b(inary)?': 'Non-Binary',
             r'g(ender)?q(ueer)?': 'Genderqueer',
             r'demigirl': 'Demigirl',
