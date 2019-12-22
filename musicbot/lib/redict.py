@@ -7,11 +7,11 @@ class redict:
 
     def __getitem__(self, item):
         for key in self.__dict__:
-            if re.match(key, item, re.IGNORECASE):
+            if re.fullmatch(key, item, re.IGNORECASE):
                 return self.__dict__[key]
 
     def __contains__(self, item):
         for key in self.__dict__:
-            if re.match(key, item, re.IGNORECASE):
+            if re.fullmatch(key, item, re.IGNORECASE):
                 return True
         return False
