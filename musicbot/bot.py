@@ -2186,26 +2186,26 @@ class MusicBot(discord.Client):
         # ]
 
         roles = redict({
-            # Sexualities
-            r'lesbian': 'Lesbian',
-            r'bi(sexual)?': 'Bi',
-            r'(gay|homo(sexual)?)': 'Gay',
-            r'pan(sexual)?': 'Pan',
-            r'a[c|s]e(xual)?': 'Ace',
-            r'(straight|hetero(sexual)?)': 'Hetero',
-            # Gender Identities
-            r'm(ale)? ?(to?|-) ?f(emale)?': 'MtF',
-            r'fe(male)? ?(to?|-) ?m(ale)?': 'FtM',
-            r'trans(gender|sexual)?': 'Trans',
-            r'transmasc(uline)?': 'Transmasc',
-            r'transfem(me)?': 'Transfemme',
-            r'e?n(on)?-?b((inar)?y)?': 'Non-Binary',
-            r'g(ender)?q(ueer)?': 'Genderqueer',
-            r'demigirl': 'Demigirl',
-            r'demi(boy|guy)': 'Demiboy',
-            r'cis(gender|sexual)?': 'Cisgender',
-            r'male': 'Male',
-            r'female': 'Female',
+            # # Sexualities
+            # r'lesbian': 'Lesbian',
+            # r'bi(sexual)?': 'Bi',
+            # r'(gay|homo(sexual)?)': 'Gay',
+            # r'pan(sexual)?': 'Pan',
+            # r'a[c|s]e(xual)?': 'Ace',
+            # r'(straight|hetero(sexual)?)': 'Hetero',
+            # # Gender Identities
+            # r'm(ale)? ?(to?|-) ?f(emale)?': 'MtF',
+            # r'fe(male)? ?(to?|-) ?m(ale)?': 'FtM',
+            # r'trans(gender|sexual)?': 'Trans',
+            # r'transmasc(uline)?': 'Transmasc',
+            # r'transfem(me)?': 'Transfemme',
+            # r'e?n(on)?-?b((inar)?y)?': 'Non-Binary',
+            # r'g(ender)?q(ueer)?': 'Genderqueer',
+            # r'demigirl': 'Demigirl',
+            # r'demi(boy|guy)': 'Demiboy',
+            # r'cis(gender|sexual)?': 'Cisgender',
+            # r'male': 'Male',
+            # r'female': 'Female',
             # Pronouns
             r'((he|hi[ms])/?){1,3}': 'He/Him',
             r'((she|hers?)/?){1,3}': 'She/Her',
@@ -2221,9 +2221,11 @@ class MusicBot(discord.Client):
             await self.add_roles(author, next(r for r in server.roles if r.name == roles[role]))
             return Response('Added {} role.'.format(roles[role]), delete_after=25)
         else:
-            return Response('Role not found. Check your spelling or ask a mod to add it.', delete_after=25)
+            # return Response('Role not found. Check your spelling or ask a mod to add it.', delete_after=25)
+            return Response('Role not found.', delete_after=25)
 
     cmd_iam = cmd_role
+    cmd_pronoun = cmd_role
 
     async def cmd_color(self, server, channel, author, color):
         """
